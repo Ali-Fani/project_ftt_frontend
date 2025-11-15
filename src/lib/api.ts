@@ -58,6 +58,12 @@ export interface TimeEntry {
   tags: string[];
 }
 
+export interface PaginatedTimeEntries {
+  next: string | null;
+  previous: string | null;
+  results: TimeEntry[];
+}
+
 export const auth = {
   login: async (username: string, password: string) => {
     const response = await ky.post(`${get(baseUrl)}/auth/token/login/`, {
@@ -82,8 +88,12 @@ export const projects = {
 };
 
 export const timeEntries = {
-  list: async () => {
-    return await api.get('api/time_entries/').json<TimeEntry[]>();
+  list: async (cursor?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (cursor) params.append('cursor', cursor);
+    if (limit) params.append('limit', limit.toString());
+    const url = `api/time_entries/?${params.toString()}`;
+    return await api.get(url).json<PaginatedTimeEntries>();
   },
   start: async (data: { title: string; description?: string; project: number; tags?: number[] }) => {
     return await api.post('api/time_entries/', { json: data }).json<TimeEntry>();

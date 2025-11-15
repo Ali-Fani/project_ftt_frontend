@@ -105,7 +105,7 @@ Authorization: Token <your_token>
 ### List Time Entries
 **Endpoint:** `GET /api/time_entries/`
 
-**Description:** Returns a list of all time entries for the authenticated user, sorted by start time (newest first).
+**Description:** Returns a paginated list of all time entries for the authenticated user, sorted by start time (newest first). Uses cursor-based pagination for consistent and efficient results.
 
 **Headers:**
 ```
@@ -113,25 +113,37 @@ Authorization: Token <your_token>
 ```
 
 **Query Parameters:**
-- None (returns all user's entries)
+- `cursor` (optional): Cursor for pagination. Use the 'next' or 'previous' cursor from a previous response.
+- `limit` (optional): Number of results to return per page (max 100, default 20).
 
 **Response (200 OK):**
 ```json
-[
-  {
-    "id": 1,
-    "title": "Task Title",
-    "description": "Task description",
-    "start_time": "2024-01-01T10:00:00Z",
-    "end_time": "2024-01-01T11:30:00Z",
-    "duration": "01:30:00",
-    "is_active": false,
-    "user": "username",
-    "project": "Project Title",
-    "tags": ["tag1", "tag2"]
-  }
-]
+{
+  "next": "http://localhost:8000/api/time_entries/?cursor=cD0yMDI1LTEwLTI1KzE3JTNBNTglM0EwMCUyQjAwJTNBMDA%3D",
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "title": "Task Title",
+      "description": "Task description",
+      "start_time": "2024-01-01T10:00:00Z",
+      "end_time": "2024-01-01T11:30:00Z",
+      "duration": "01:30:00",
+      "is_active": false,
+      "user": "username",
+      "project": "Project Title",
+      "tags": ["tag1", "tag2"]
+    }
+  ]
+}
 ```
+
+**Pagination Notes:**
+- `next`: URL for the next page of results (null if no more pages)
+- `previous`: URL for the previous page of results (null if on first page)
+- `results`: Array of time entry objects (up to the limit specified)
+- Use the full URL provided in `next` or `previous` for subsequent requests
+- Cursor-based pagination ensures consistent results even when new entries are added
 
 ### Get Single Time Entry
 **Endpoint:** `GET /api/time_entries/{id}/`

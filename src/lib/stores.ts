@@ -45,6 +45,7 @@ export const customThemes = createPersistentStore<Record<string, Record<string, 
 export const minimizeToTray = createPersistentStore<boolean>('minimizeToTray', true);
 export const closeToTray = createPersistentStore<boolean>('closeToTray', false);
 export const autostart = createPersistentStore<boolean>('autostart', false);
+export const timeEntriesDisplayMode = createPersistentStore<string>('timeEntriesDisplayMode', 'window');
 
 export const showSettings = writable(false);
 

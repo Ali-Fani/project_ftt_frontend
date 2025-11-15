@@ -2,11 +2,16 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { minimizeToTray, closeToTray } from '$lib/stores';
+	import { Minus, Maximize2, Minimize2, X, Pin, PinOff } from '@lucide/svelte';
 
 	let appWindow: any;
 	let title = '';
 	let minimizeToTrayValue = false;
 	let closeToTrayValue = false;
+	let isTimeEntriesWindow = false;
+	let isAlwaysOnTop = false;
+	let isMaximized = false;
+	let unlistenResize: (() => void) | null = null;
 
 	const unsubscribeMin = minimizeToTray.subscribe(value => {
 		minimizeToTrayValue = value;
@@ -19,15 +24,27 @@
 	onDestroy(() => {
 		unsubscribeMin();
 		unsubscribeClose();
+		if (unlistenResize) {
+			unlistenResize();
+		}
 	});
 
 	onMount(async () => {
-		appWindow = getCurrentWindow();
-		title = await appWindow.title();
+	  appWindow = getCurrentWindow();
+	  title = await appWindow.title();
+	  isTimeEntriesWindow = title === 'Time Entries';
+	  isAlwaysOnTop = await appWindow.isAlwaysOnTop();
+	  isMaximized = await appWindow.isMaximized();
+
+	  // Listen for window resize/maximize events to update icon state
+	  unlistenResize = await appWindow.listen('tauri://resize', async () => {
+	    isMaximized = await appWindow?.isMaximized();
+	  });
 	});
 
 	function minimize() {
 		console.log('Minimize clicked, minimizeToTrayValue:', minimizeToTrayValue);
+		console.log('appWindow:', appWindow);
 		if (minimizeToTrayValue) {
 			console.log('Hiding window to tray');
 			appWindow?.hide();
@@ -37,40 +54,76 @@
 		}
 	}
 
-	function toggleMaximize() {
-		appWindow?.toggleMaximize();
+	async function toggleMaximize() {
+		console.log('Toggle maximize clicked');
+		console.log('appWindow:', appWindow);
+		await appWindow?.toggleMaximize();
+		// Update the maximized state after toggling
+		isMaximized = await appWindow?.isMaximized();
+		console.log('Window maximized state:', isMaximized);
 	}
 
 	function close() {
-		if (closeToTrayValue) {
-			appWindow?.hide();
-		} else {
-			appWindow?.close();
-		}
+	  console.log('Close clicked, closeToTrayValue:', closeToTrayValue);
+	  console.log('appWindow:', appWindow);
+	  if (closeToTrayValue) {
+	    appWindow?.hide();
+	  } else {
+	    appWindow?.close();
+	  }
+	}
+
+	async function toggleAlwaysOnTop() {
+	  console.log('Toggle always on top clicked');
+	  console.log('appWindow:', appWindow);
+	  isAlwaysOnTop = !isAlwaysOnTop;
+	  console.log('Setting always on top to:', isAlwaysOnTop);
+	  await appWindow?.setAlwaysOnTop(isAlwaysOnTop);
 	}
 </script>
 
 <div class="titlebar" data-tauri-drag-region>
-	<div class="title-container">
-		<span class="title-text">{title}</span>
-	</div>
-	<div class="controls">
-		<button id="titlebar-minimize" on:click={minimize} title="minimize" aria-label="Minimize window">
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M19 13H5v-2h14z" />
-			</svg>
-		</button>
-		<button id="titlebar-maximize" on:click={toggleMaximize} title="maximize" aria-label="Maximize window">
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M4 4h16v16H4zm2 4v10h12V8z" />
-			</svg>
-		</button>
-		<button id="titlebar-close" on:click={close} title="close" aria-label="Close window">
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M13.46 12L19 17.54V19h-1.46L12 13.46L6.46 19H5v-1.46L10.54 12L5 6.46V5h1.46L12 10.54L17.54 5H19v1.46z" />
-			</svg>
-		</button>
-	</div>
+  <div class="title-container">
+    <span class="title-text">{title}</span>
+  </div>
+  <div class="controls">
+    {#if !isTimeEntriesWindow}
+      <button id="titlebar-minimize" onclick={minimize} title="minimize" aria-label="Minimize window" class="hover:bg-base-200">
+        <Minus size={16} />
+      </button>
+    {/if}
+    {#if isTimeEntriesWindow}
+      <button
+        id="titlebar-pin"
+        onclick={toggleAlwaysOnTop}
+        title={isAlwaysOnTop ? "unpin window" : "pin window on top"}
+        aria-label="Toggle always on top"
+        class="pin-button {isAlwaysOnTop ? 'active' : ''} hover:bg-base-200"
+      >
+        {#if isAlwaysOnTop}
+          <Pin size={16} class="toggle-icon-active" />
+        {:else}
+          <PinOff size={16} class="toggle-icon-inactive" />
+        {/if}
+      </button>
+    {/if}
+    <button
+      id="titlebar-maximize"
+      onclick={toggleMaximize}
+      title={isMaximized ? "restore" : "maximize"}
+      aria-label={isMaximized ? "Restore window" : "Maximize window"}
+      class="hover:bg-base-200"
+    >
+      {#if isMaximized}
+        <Minimize2 size={16} />
+      {:else}
+        <Maximize2 size={16} />
+      {/if}
+    </button>
+    <button id="titlebar-close" onclick={close} title="close" aria-label="Close window" class="hover:bg-base-200">
+      <X size={16} />
+    </button>
+  </div>
 </div>
 
 <style>
@@ -126,17 +179,37 @@
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		transition: background-color 0.2s;
+		border-radius: 4px;
+		position: relative;
 	}
 
-	.controls button:hover {
-		background: hsl(var(--b2));
+	/* Close button uses default hover effect */
+
+	.pin-button {
+		transition: all 0.2s ease;
 	}
 
-	#titlebar-close:hover {
-		background: hsl(var(--er));
-		color: hsl(var(--erc));
+	.pin-button.active {
+		background: hsl(var(--p));
+		color: hsl(var(--pc));
 	}
+
+	.pin-button.active:hover {
+		background: hsl(var(--pf));
+	}
+
+	/* Toggle icon colors */
+	.toggle-icon-inactive {
+		color: hsl(var(--n)); /* Neutral color for inactive state */
+	}
+
+	.toggle-icon-active {
+		color: white;
+		background: hsl(var(--a)); /* Accent color fill for active state */
+		padding: 2px;
+		border-radius: 2px;
+	}
+
 
 	/* Enable touch/pen drag on Windows */
 	*[data-tauri-drag-region] {

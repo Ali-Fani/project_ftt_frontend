@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { baseUrl, theme, customThemes, minimizeToTray, closeToTray, autostart, logout } from './stores';
+	import { baseUrl, theme, customThemes, minimizeToTray, closeToTray, autostart, timeEntriesDisplayMode, logout } from './stores';
 	import { enable, disable } from '@tauri-apps/plugin-autostart';
 	import { createEventDispatcher } from 'svelte';
+	import { onMount } from 'svelte';
+	import { getVersion } from '@tauri-apps/api/app';
 
 	const dispatch = createEventDispatcher();
 
@@ -12,6 +14,13 @@
 	let localMinimizeToTray = $state($minimizeToTray);
 	let localCloseToTray = $state($closeToTray);
 	let localAutostart = $state($autostart);
+	let localTimeEntriesDisplayMode = $state($timeEntriesDisplayMode);
+	let appVersion = $state('');
+	let showLogoutConfirm = $state(false);
+
+	onMount(async () => {
+		appVersion = await getVersion();
+	});
 
 	const builtInThemes = [
 	       "light",
@@ -53,6 +62,12 @@
 
 	let themes = $derived([...builtInThemes, ...Object.keys($customThemes), 'custom']);
 
+	const timeEntriesDisplayModes = [
+		{ value: 'window', label: 'New Window/Tab' },
+		{ value: 'modal', label: 'Modal Dialog' },
+		// Future options can be added here
+	];
+
 	// Preview theme
 	$effect(() => {
 		if (enablePreview && localTheme && localTheme !== $theme) {
@@ -89,6 +104,7 @@
 		minimizeToTray.set(localMinimizeToTray);
 		closeToTray.set(localCloseToTray);
 		autostart.set(localAutostart);
+		timeEntriesDisplayMode.set(localTimeEntriesDisplayMode);
 		try {
 			if (localAutostart) {
 				await enable();
@@ -122,6 +138,15 @@
 
 	function cancel() {
 		dispatch('close');
+	}
+
+	function confirmLogout() {
+		logout();
+		dispatch('close');
+	}
+
+	function cancelLogout() {
+		showLogoutConfirm = false;
 	}
 </script>
 
@@ -173,6 +198,17 @@
 					<input type="checkbox" bind:checked={localAutostart} class="checkbox" />
 				</label>
 			</div>
+		</div>
+
+		<div class="form-control">
+			<label class="label" for="timeEntriesDisplayMode">
+				<span class="label-text">Time Entries Display Mode</span>
+			</label>
+			<select id="timeEntriesDisplayMode" bind:value={localTimeEntriesDisplayMode} class="select select-bordered">
+				{#each timeEntriesDisplayModes as mode}
+					<option value={mode.value}>{mode.label}</option>
+				{/each}
+			</select>
 		</div>
 
 		{#if Object.keys($customThemes).length > 0}
@@ -227,21 +263,29 @@
 			</div>
 		{/if}
 
-		<div class="divider"></div>
-		<div class="alert alert-warning">
-			<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-			</svg>
-			<div>
-				<h3 class="font-bold">Logout</h3>
-				<div class="text-xs">This will end your current session.</div>
-			</div>
-			<button class="btn btn-error btn-sm" onclick={() => { logout(); dispatch('close'); }}>Logout</button>
+		<div class="text-center text-sm text-base-content/70 mt-4">
+			Version: {appVersion} | Build: {appVersion}
 		</div>
 
-		<div class="modal-action">
-			<button class="btn" onclick={cancel}>Cancel</button>
-			<button class="btn btn-primary" onclick={save}>Save</button>
+		<div class="modal-action justify-between">
+			<button class="btn btn-error" onclick={() => showLogoutConfirm = true}>Logout</button>
+			<div>
+				<button class="btn" onclick={cancel}>Cancel</button>
+				<button class="btn btn-primary" onclick={save}>Save</button>
+			</div>
 		</div>
+
+		{#if showLogoutConfirm}
+			<div class="modal modal-open">
+				<div class="modal-box max-w-sm">
+					<h3 class="font-bold text-lg">Confirm Logout</h3>
+					<p class="py-4">This will end your current session and require you to log in again. Are you sure you want to logout?</p>
+					<div class="modal-action">
+						<button class="btn" onclick={cancelLogout}>Cancel</button>
+						<button class="btn btn-error" onclick={confirmLogout}>Logout</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>

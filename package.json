@@ -1,6 +1,6 @@
 {
 	"name": "time-tracker",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"type": "module",
 	"license": "MIT",
 	"scripts": {
@@ -11,7 +11,8 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
-		"tauri": "tauri"
+		"tauri": "tauri",
+		"sync-version": "node -e \"const fs = require('fs'); const p = JSON.parse(fs.readFileSync('./package.json')); const tauriPath = './src-tauri/tauri.conf.json'; const cargoPath = './src-tauri/Cargo.toml'; const tauri = JSON.parse(fs.readFileSync(tauriPath)); tauri.version = p.version; fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2)); const cargo = fs.readFileSync(cargoPath, 'utf8'); const updatedCargo = cargo.replace(/version = \\\"[^\\\"]+\\\"/, `version = \\\"${p.version}\\\"`); fs.writeFileSync(cargoPath, updatedCargo); console.log('Versions synced to', p.version);\""
 	},
 	"devDependencies": {
 		"@sveltejs/kit": "^2.7.2",
@@ -31,10 +32,12 @@
 		"vite": "^5.4.10"
 	},
 	"dependencies": {
+		"@lucide/svelte": "^0.553.0",
 		"@sveltejs/adapter-static": "^3.0.5",
 		"@tauri-apps/api": "^2.9.0",
 		"@tauri-apps/cli": "^2.0.4",
 		"@tauri-apps/plugin-autostart": "~2",
+		"@tauri-apps/plugin-dialog": "^2.4.2",
 		"@tauri-apps/plugin-global-shortcut": "~2",
 		"@tauri-apps/plugin-os": "^2.3.2",
 		"@tauri-apps/plugin-store": "~2",

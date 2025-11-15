@@ -2,27 +2,31 @@
    import { onMount } from 'svelte';
    import { get } from 'svelte/store';
    import { goto } from '$app/navigation';
-   import { authToken, user, showSettings, logout } from '$lib/stores';
+   import { authToken, user, showSettings, timeEntriesDisplayMode, logout } from '$lib/stores';
    import { projects, timeEntries, type Project, type TimeEntry } from '$lib/api';
    import { preventDefault } from '$lib/commands.svelte';
+   import TasksModal from '$lib/TasksModal.svelte';
 
-  let activeEntry: TimeEntry | null = null;
-  let projectsList: Project[] = [];
-  let loadingProjects = true;
-  let loadingActiveEntry = false;
-  let error = '';
+  let activeEntry = $state<TimeEntry | null>(null);
+  let projectsList = $state<Project[]>([]);
+  let loadingProjects = $state(true);
+  let loadingActiveEntry = $state(false);
+  let error = $state('');
 
   // Form data
-  let title = '';
-  let description = '';
-  let selectedProject: number | null = null;
+  let title = $state('');
+  let description = $state('');
+  let selectedProject = $state<number | null>(null);
 
   // Timer
-  let elapsed = 0;
-  let timerInterval: any = null;
+  let elapsed = $state(0);
+  let timerInterval = $state<any>(null);
 
   // Mobile menu
-  let menuOpen = false;
+  let menuOpen = $state(false);
+
+  // Tasks modal
+  let showTasksModal = $state(false);
 
 
   onMount(async () => {
@@ -174,6 +178,40 @@
     }
   };
 
+  const openTimeEntries = async () => {
+    console.log('openTimeEntries called, mode:', get(timeEntriesDisplayMode));
+    const mode = get(timeEntriesDisplayMode);
+
+    if (mode === 'modal') {
+      console.log('Opening tasks in modal');
+      showTasksModal = true;
+      return;
+    }
+
+    // Default to window/tab mode
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      getCurrentWindow(); // Test if running in Tauri
+      console.log('Detected Tauri environment, opening new window');
+      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+      console.log('WebviewWindow imported successfully');
+      const webview = new WebviewWindow('time-entries', {
+        url: `${window.location.origin}/tasks`,
+        title: 'Time Entries',
+        width: 1000,
+        height: 700,
+        resizable: true,
+        decorations: false,
+        fullscreen: false,
+        contentProtected: true,
+      });
+      console.log('WebviewWindow created:', webview);
+    } catch {
+      console.log('Web environment, opening new tab');
+      window.open('/tasks', '_blank');
+    }
+  };
+
 </script>
 
 {#if loadingProjects}
@@ -201,6 +239,12 @@
        </div>
        <div class="navbar-end hidden md:flex">
          <span class="mr-4">Welcome, {get(user)?.first_name}!</span>
+         <button class="btn btn-ghost" onclick={openTimeEntries}>
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+           </svg>
+           Time Entries
+         </button>
          <button class="btn btn-ghost" onclick={() => showSettings.set(true)}>
            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
@@ -285,4 +329,8 @@
        {/if}
      {/if}
    </div>
-{/if}
+ {/if}
+
+ {#if showTasksModal}
+   <TasksModal on:close={() => showTasksModal = false} />
+ {/if}

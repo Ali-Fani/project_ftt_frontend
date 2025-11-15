@@ -27,6 +27,21 @@
 				await currentWindow.setFocus();
 			});
 
+			// Listen for theme change events from other windows
+			listen('theme-changed', (event) => {
+				console.log('Received theme change event:', event.payload);
+				const payload = event.payload as { theme: string; isCustom: boolean; customVars?: Record<string, string> };
+				const { theme, isCustom, customVars } = payload;
+				if (isCustom && customVars) {
+					document.documentElement.setAttribute('data-theme', '');
+					for (const [key, value] of Object.entries(customVars)) {
+						document.documentElement.style.setProperty(key, value as string);
+					}
+				} else {
+					document.documentElement.setAttribute('data-theme', theme);
+				}
+			});
+
 			try {
 				const { LazyStore } = await import('@tauri-apps/plugin-store');
 				const tauriStore = new LazyStore('auth.json');
@@ -49,18 +64,29 @@
 	$effect(() => {
 		if (typeof document !== 'undefined') {
 			console.log('Applying theme:', $theme, 'is custom:', $theme in $customThemes);
-			if ($theme in $customThemes) {
-				document.documentElement.setAttribute('data-theme', '');
-				const vars = $customThemes[$theme];
-				console.log('Applying custom vars:', vars);
-				for (const [key, value] of Object.entries(vars)) {
-					document.documentElement.style.setProperty(key, value);
-				}
-			} else {
-				document.documentElement.setAttribute('data-theme', $theme);
+			applyTheme($theme);
+
+			// Emit theme change event to other windows
+			if (isTauri) {
+				import('@tauri-apps/api/event').then(({ emit }) => {
+					emit('theme-changed', { theme: $theme, isCustom: $theme in $customThemes, customVars: $customThemes[$theme] });
+				}).catch(err => console.error('Failed to emit theme change event:', err));
 			}
 		}
 	});
+
+	function applyTheme(themeName: string) {
+		if ($theme in $customThemes) {
+			document.documentElement.setAttribute('data-theme', '');
+			const vars = $customThemes[$theme];
+			console.log('Applying custom vars:', vars);
+			for (const [key, value] of Object.entries(vars)) {
+				document.documentElement.style.setProperty(key, value);
+			}
+		} else {
+			document.documentElement.setAttribute('data-theme', themeName);
+		}
+	}
 </script>
 
 {#if isTauri}
