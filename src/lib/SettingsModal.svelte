@@ -20,6 +20,7 @@
 
 	onMount(async () => {
 		appVersion = await getVersion();
+		// no-op: devtools feature is managed elsewhere
 	});
 
 	const builtInThemes = [
@@ -199,6 +200,8 @@
 				</label>
 			</div>
 		</div>
+
+
 
 		<div class="form-control">
 			<label class="label" for="timeEntriesDisplayMode">

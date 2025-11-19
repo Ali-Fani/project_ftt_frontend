@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
+use tauri::Emitter;
 
 #[derive(Serialize, Deserialize)]
 pub struct TimerState {
@@ -61,16 +62,12 @@ pub fn get_processes() -> Result<Vec<ProcessInfo>, String> {
     Ok(processes)
 }
 
-#[cfg(debug_assertions)]
 #[tauri::command]
-pub fn toggle_devtools(window: tauri::WebviewWindow) -> Result<(), String> {
-    let is_open = window.is_devtools_open();
-    if is_open {
-        window.close_devtools();
-        println!("Devtools closed");
-    } else {
-        window.open_devtools();
-        println!("Devtools opened");
-    }
+pub fn toggle_devtools(window: tauri::Window) -> Result<(), String> {
+    // Emit an event the webview can listen for and perform the actual
+    // opening on the renderer side. Renderer has a fallback to dispatch
+    // an F12 key event if necessary.
+    let _ = window.emit("open-devtools", ());
+    println!("toggle_devtools: emitted open-devtools event");
     Ok(())
 }

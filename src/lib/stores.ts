@@ -174,10 +174,9 @@ function createFeatureFlagsStore() {
         clearTimeout(cacheTimer);
       }
       cacheTimer = setTimeout(() => {
-        import('./stores').then(({ createFeatureFlagsStore }) => {
-          // Trigger reload
-        });
-      }, 60000); // Auto-refresh every minute
+        // Intentionally no dynamic import to avoid duplicating this module in the bundle.
+        // Callers should invoke `loadFeatures` explicitly when they need a refresh.
+      }, 60000); // Auto-refresh timer (no-op)
     },
     
     // Clear state
@@ -202,4 +201,4 @@ export const isProcessMonitorUIEnabled = () => featureFlagsStore.isFeatureEnable
 export const isProcessMonitorBackendEnabled = () => featureFlagsStore.isFeatureEnabled('process-monitor-backend');
 
 // Helper function to check if devtools is enabled
-export const isDevtoolsEnabled = () => featureFlagsStore.isFeatureEnabled('devtools');
+// `isDevtoolsEnabled` removed — feature checks should call `featureFlagsStore.isFeatureEnabled('devtools')` directly.

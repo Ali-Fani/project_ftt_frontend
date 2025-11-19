@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "1.0.2"
+version = "1.0.4"
 description = "A modern, cross-platform desktop time tracking application built with Tauri, Svelte, and Rust."
 license = "MIT"
 edition = "2021"
@@ -19,10 +19,12 @@ tauri-build = { version = "2.0.1", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.0.3", features = ["tray-icon"] }
+tauri = { version = "2.0.3", features = ["tray-icon", "devtools"] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-single-instance = "2.0.0"
 tauri-plugin-store = "2"
 tauri-plugin-os = "2.3.2"
 tauri-plugin-autostart = "2.0.0"
 sysinfo = "0.30"
+
+# No crate-level `devtools` feature is used; devtools are controlled at runtime

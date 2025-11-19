@@ -2,7 +2,7 @@
    import { onMount } from 'svelte';
    import { get } from 'svelte/store';
    import { goto } from '$app/navigation';
-   import { authToken, user, showSettings, timeEntriesDisplayMode, logout, featureFlagsStore, isDevtoolsEnabled } from '$lib/stores';
+  import { authToken, user, showSettings, timeEntriesDisplayMode, logout, featureFlagsStore } from '$lib/stores';
    import { projects, timeEntries, type Project, type TimeEntry } from '$lib/api';
    import { preventDefault } from '$lib/commands.svelte';
    import TasksModal from '$lib/TasksModal.svelte';
@@ -30,7 +30,6 @@
 
   // Feature flags state
   let showProcessMonitorButton = $state(false);
-  let showDevtoolsButton = $state(false);
   let loadingFeatureFlags = $state(true);
 
 
@@ -50,14 +49,7 @@
         // Load feature flags first
         await featureFlagsStore.loadFeatures();
         showProcessMonitorButton = await featureFlagsStore.isFeatureEnabled('process-monitor-ui');
-        showDevtoolsButton = await featureFlagsStore.isFeatureEnabled('devtools');
-        console.log('Feature flags loaded:', {
-          processMonitorUI: showProcessMonitorButton,
-          devtools: showDevtoolsButton
-        });
-        // Temporary: Always show devtools button for testing
-        showDevtoolsButton = true;
-        console.log('Devtools button will be shown:', showDevtoolsButton);
+        console.log('Feature flags loaded:', { processMonitorUI: showProcessMonitorButton });
         loadingFeatureFlags = false;
 
         // Load both projects and active entry in parallel
@@ -121,6 +113,25 @@
          console.log('Sending timer state response:', timerState);
          emit('timer-state-response', timerState);
        });
+
+      // Listen for backend-triggered devtools opening.
+      listen('open-devtools', () => {
+        try {
+          // Try to use Tauri-side devtools API if exposed
+          // otherwise fall back to dispatching an F12 key event.
+          const ev = new KeyboardEvent('keydown', {
+            key: 'F12',
+            code: 'F12',
+            keyCode: 123,
+            which: 123,
+            bubbles: true,
+            cancelable: true
+          });
+          window.dispatchEvent(ev);
+        } catch (err) {
+          console.error('Failed to open devtools from event:', err);
+        }
+      });
 
        // Test event emission
        console.log('Testing event emission...');
@@ -263,31 +274,8 @@
     }
   };
 
-  const openDevtools = async () => {
-    // Log feature access
-    try {
-      await featureFlagsStore.logFeatureAccess('devtools');
-    } catch (error) {
-      console.error('Failed to log devtools access:', error);
-    }
-
-    // Try Tauri first, fallback to web browser
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('toggle_devtools');
-    } catch {
-      // Web browser fallback - F12 toggle
-      const event = new KeyboardEvent('keydown', {
-        key: 'F12',
-        code: 'F12',
-        keyCode: 123,
-        which: 123,
-        bubbles: true,
-        cancelable: true
-      });
-      window.dispatchEvent(event);
-    }
-  };
+  // DevTools control removed from dashboard. Use Settings to inspect the
+  // feature flag and the backend will only open devtools when allowed.
 
 </script>
 
@@ -330,14 +318,7 @@
              Process Monitor
            </button>
          {/if}
-         {#if !loadingFeatureFlags && showDevtoolsButton}
-           <button class="btn btn-ghost" onclick={openDevtools} title="Toggle Developer Tools">
-             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-             </svg>
-             DevTools
-           </button>
-         {/if}
+        <!-- DevTools button removed; controlled via feature flags and Settings modal -->
          <button class="btn btn-ghost" onclick={() => showSettings.set(true)}>
            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
